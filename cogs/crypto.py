@@ -14,14 +14,6 @@ class Crypto(commands.Cog, name="Crypto"):
 		self.bot = bot
 		print("Crypto loaded!")
 
-	@commands.command(name="a")
-	async def a(self, context: Context):
-		print("Greet called#####")
-		# Remove original message
-		await context.message.delete()
-		# Reply
-		await context.send("Greetings!")
-
 
 # Mandatory setup function, not part of class
 def setup(bot):
