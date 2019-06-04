@@ -8,9 +8,6 @@ import traceback
 import requests
 import re
 
-
-discord.ext.commands.Command
-
 class Core(commands.Cog, name="Art Bot Core"):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
