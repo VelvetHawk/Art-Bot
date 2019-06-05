@@ -33,6 +33,14 @@ class Music(commands.Cog, name="Music"):
 		self.skip_amount = None
 		print("Music loaded!")
 
+	# TODO: Create custom subprocess to run FFMPEG:
+	"""
+	args.append('-i')
+	args.append('-' if pipe else source)
+	args.extend(('-f', 's16le', '-ar', '48000', '-ac', '2', '-loglevel', 'warning'))
+	These are the arguments passed into FFMPEG, create a custom subprocess call for FFMPEG
+	"""
+
 	@commands.command()
 	async def play(self, context, *, message=None):
 		"""
