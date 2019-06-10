@@ -126,7 +126,7 @@ async def __exit(context: Context, message: str = None):
 @checks.is_owner()
 async def __help(context: Context):
 	# List all loaded commands
-	command_list = "```Full Command List:\n"
+	command_list = "**Full Command List**:\n```\n"
 	# Create a copy of the total command list
 	bot_command_list = bot.commands.copy()
 	# For each cog
