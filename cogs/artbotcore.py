@@ -8,6 +8,7 @@ import traceback
 import requests
 import re
 
+
 class Core(commands.Cog, name="Art Bot Core"):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
@@ -69,7 +70,9 @@ class Core(commands.Cog, name="Art Bot Core"):
 				await context.send(
 					"<@{}>, <@{}> is asking you:\n```fix\n{}```".format(someone.id, context.author.id, message))
 
-# Is there any deal?
+	# TODO: Add functionality to search with ITAD for suggestions of games
+	# API Link https://itad.docs.apiary.io/#reference/search/search/find-games
+	# Is there any deal?
 	@commands.command(name="isthereanydeal", aliases=["itad"])
 	async def isthereanydeal(self, context, *, game=None):
 		try:
