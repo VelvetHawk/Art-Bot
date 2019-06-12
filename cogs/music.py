@@ -16,7 +16,7 @@ import re
 class Music(commands.Cog, name="Music"):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
-		self.executable = "3rd-party/ffmpeg/bin/ffmpeg"
+		self.executable = config.FFMPEG_PATH
 		self.exec_options = "-rtbufsize 15M"
 		self.voicestate = None
 		self.voice_client = None
