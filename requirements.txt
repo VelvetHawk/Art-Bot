@@ -1,7 +1,5 @@
 # Discord to run bot
 discord.py==1.1.1
-# Player for music
-ffmpeg-python==0.1.17
 # For network requests
 requests==2.22.0
 # For downloading music
