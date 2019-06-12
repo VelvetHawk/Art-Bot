@@ -10,6 +10,11 @@ import traceback
 import requests
 import re
 
+# Logging
+# import logging
+# import sys
+# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
 
 class ArtBot(Bot):
 	""" Welcome to the Art Bot mark II! """
@@ -20,7 +25,7 @@ class ArtBot(Bot):
 		self.core_extensions = [
 			"cogs.artbotcore",
 			"cogs.crypto",
-			# "cogs.music",
+			"cogs.music",
 			"cogs.owner",
 			"cogs.rng",
 			"cogs.utility"
@@ -79,6 +84,7 @@ bot = ArtBot(
 
 # ########### DEV COMMANDS ##############
 """ Cog Dynamic Loading/Unloading Functionality """
+
 
 @bot.command(hidden=True, name="__unload__")
 @checks.is_owner()
