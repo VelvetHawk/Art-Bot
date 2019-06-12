@@ -9,12 +9,15 @@ import asyncio
 import secrets
 import traceback
 import requests
+import shutil
 import re
 
 
 class Music(commands.Cog, name="Music"):
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
+		self.executable = "3rd-party/ffmpeg/bin/ffmpeg"
+		self.exec_options = "-rtbufsize 15M"
 		self.voicestate = None
 		self.voice_client = None
 		self.channel = None
@@ -33,14 +36,6 @@ class Music(commands.Cog, name="Music"):
 		self.skip_amount = None
 		print("Music loaded!")
 
-	# TODO: Create custom subprocess to run FFMPEG:
-	"""
-	args.append('-i')
-	args.append('-' if pipe else source)
-	args.extend(('-f', 's16le', '-ar', '48000', '-ac', '2', '-loglevel', 'warning'))
-	These are the arguments passed into FFMPEG, create a custom subprocess call for FFMPEG
-	"""
-
 	@commands.command()
 	async def play(self, context, *, message=None):
 		"""
@@ -54,21 +49,24 @@ class Music(commands.Cog, name="Music"):
 					# Check if link or keyword search
 					if message.startswith("https://"):
 						# Get link with youtube_dl
-						options = {}
+						options = {'outtmpl':  'data/music/%(title)s.%(ext)s'}
 						yt_dl = youtube_dl.YoutubeDL(options)
-						link_info = yt_dl.extract_info(message, download=False)
+						link_info = yt_dl.extract_info(message, download=True)  # Video Download
 						title = link_info['title']
-						audio_only_url = None
+						ext = None
+						source = None
 						for _format in link_info['formats']:
-							if _format['format_id'] == '140':
-								audio_only_url = _format['url']
+							if _format['format_id'] == '160':
+								ext = _format['ext']
+								source = 'data/music/{}.{}'.format(title, ext)
 								break
 						# Add object to playlist
 						self.playlist.append(
 							{
 								"title": title,
+								"ext": ext,
 								"link": message,
-								"audio": audio_only_url,
+								"source": source,
 								"loop": False
 							})
 						# Check to do setup
@@ -82,43 +80,65 @@ class Music(commands.Cog, name="Music"):
 						if not self.voice_client.is_playing():
 							self.continue_playing = True
 							# Plays the first song automatically
-							self.voice_client.play(discord.FFmpegPCMAudio(
-								self.playlist[0]['audio'],
-								executable="3rd-party/ffmpeg/bin/ffmpeg")
+							self.voice_client.play(
+								discord.FFmpegPCMAudio(
+									source=self.playlist[0]['source'],
+									executable=self.executable
+								)
 							)
 							await context.send("```\nNow playing: {}\nLink: {}```".format(title, message))
 							# Play loop
 							while self.continue_playing:
-								if self.skip == True:
+								if self.skip:
 									self.voice_client.stop()  # Stop track
 									self.skip = False
 									# Disable current track looping, just in case it's unabled so it can be skipped
 									self.playlist[0]['loop'] = False
 									# Skip tracks
 									if isinstance(self.skip_amount, str) and self.skip_amount.lower() == "all":
-										self.playlist = []  # Easier than just popping each off individually
+										# Delete all files from playlist
+										for song in range(0, len(self.playlist) - 1):
+											self.remove_file(song['title'], song['ext'])	 # Remove file
+										# Easier than just popping each off individually
+										self.playlist = []
 									# Track will be skipped automatically if only one available
 									elif int(self.skip_amount) > 1:
 										for song in range(0, int(self.skip_amount) - 1):
+											self.remove_file(
+												self.playlist[0]['title'],
+												self.playlist[0]['ext']
+											)	 # Remove file
 											self.playlist.pop(0)
+									else:  # Remove only the first song
+										self.remove_file(
+											self.playlist[0]['title'],
+											self.playlist[0]['ext']
+										)  # Remove file
 								if not self.voice_client.is_playing():  # Check if audio has finished playing
-									if len(self.playlist) >= 1 and self.playlist[0][
-										'loop'] == True:  # Play current song again
+									if len(self.playlist) >= 1 and self.playlist[0]['loop']:  # Play current song again
 										self.voice_client.play(
-											discord.FFmpegPCMAudio(self.playlist[0]['audio'],
-											executable="3rd-party/ffmpeg/bin/ffmpeg")
+											discord.FFmpegPCMAudio(
+												source=self.playlist[0]['source'],
+												executable=self.executable
+											)
 										)
 									else:
 										if not len(self.playlist) == 0:  # Not sure of neater way to do this
 											# Remove first item from playlist (audio that was last playing)
+											self.remove_file(
+												self.playlist[0]['title'],
+												self.playlist[0]['ext']
+											)  # Remove file
 											self.playlist.pop(0)
 										# Check needs to be done twice, as both cause error if len(self.playlist) == 0
 										if len(self.playlist) == 0:
 											self.continue_playing = False
 										else:  # Play next song
-											self.voice_client.play(discord.FFmpegPCMAudio(
-												self.playlist[0]['audio'],
-												executable="3rd-party/ffmpeg/bin/ffmpeg")
+											self.voice_client.play(
+												discord.FFmpegPCMAudio(
+													source=self.playlist[0]['source'],
+													executable=self.executable
+												)
 											)
 											await context.send("```\nNow playing: {}\nLink: {}```".format(
 												self.playlist[0]['title'], self.playlist[0]['link']))
@@ -136,7 +156,26 @@ class Music(commands.Cog, name="Music"):
 				# if not self.voice_client.is_playing() and if len(queu):
 				pass
 
-		except:
+		except Exception as exc:
+			print("\t############## Exception ###############")
+			traceback.print_exc()
+			print("\t############ END Exception ##############")
+
+	# TODO: Fix extensions for videos
+	"""
+	Sometimes, videos can have a webm extenion, so playing them may not work.
+	Fix the file deletion to also consider the extension where it's not ONLY mp4, but also webm 
+	"""
+
+	@staticmethod
+	def remove_file(filename: str, extension: str):
+		import os
+		filename = "data/music/{}.{}".format(filename, extension)
+		try:
+			print("Path:", filename)
+			if os.path.exists(filename):
+				os.remove(filename)
+		except IOError as exp:
 			print("\t############## Exception ###############")
 			traceback.print_exc()
 			print("\t############ END Exception ##############")
@@ -176,7 +215,7 @@ class Music(commands.Cog, name="Music"):
 				self.skip_amount = amount
 
 	@commands.command()
-	async def pause(self, context): # TODO: Examine this command, it's skipping the track
+	async def pause(self, context):  # TODO: Examine this command, it's skipping the track
 		if self.voice_client and self.voice_client.is_playing():
 			self.voice_client.pause()
 
@@ -195,6 +234,13 @@ class Music(commands.Cog, name="Music"):
 	async def leave(self, context):
 		if self.voice_client:
 			self.voice_client.stop()
+			# Delete all files from playlist
+			for song in self.playlist:
+				self.remove_file(
+					song['title'],
+					song['ext']
+				)  # Remove file
+				self.playlist.pop(0)
 			# Leave channel
 			await self.voice_client.disconnect()
 			# Reset everything
