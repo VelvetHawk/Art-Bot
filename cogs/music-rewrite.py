@@ -217,7 +217,7 @@ class Music(commands.Cog, name="Music-Rewrite"):
 
 	async def setup_voice_connection(self, voice_state: VoiceState):
 		# Check if currently connected to voice client
-		if self.bot.voice_clients[0] is not None:
+		if len(self.bot.voice_clients) > 1 and self.bot.voice_clients[0] is not None:
 			self.voice_client = self.bot.voice_clients[0]
 		elif not self.voice_client:
 			self.voice_client =\
