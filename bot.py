@@ -25,7 +25,7 @@ class ArtBot(Bot):
 		self.core_extensions = [
 			"cogs.artbotcore",
 			"cogs.crypto",
-			"cogs.music",
+			"cogs.music-rewrite",
 			"cogs.owner",
 			"cogs.rng",
 			"cogs.utility"
