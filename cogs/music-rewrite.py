@@ -52,6 +52,7 @@ class Music(commands.Cog, name="Music-Rewrite"):
 						)
 						# Audio Loop
 						# while self.continue_playing:
+						print("Playlist:\n", self.playlist)
 					else:
 						await context.send("```\nAdded to playlist: {}\nLink: {}```"
 							.format(self.playlist[0]['title'], message))
@@ -222,13 +223,9 @@ class Music(commands.Cog, name="Music-Rewrite"):
 		elif not self.voice_client:
 			self.voice_client =\
 				await self.bot.get_channel(voice_state.channel.id).connect()
-			print("VoiceClient-0: ", self.voice_client)
 
 	def start_audio_loop(self) -> bool:
-		print("VoiceClient-1: ", self.voice_client)
-
 		if not self.voice_client.is_playing():
-			print("VoiceClient-3: ", self.voice_client)
 			self.continue_playing = True
 			self.voice_client.play(discord.FFmpegPCMAudio(
 				source=self.playlist[0]['source'],
