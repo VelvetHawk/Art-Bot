@@ -14,6 +14,8 @@ class Owner(commands.Cog, name="Owner", command_attrs=dict(hidden=True)):
 		self.bot = bot
 		print("Owner loaded!")
 
+	# TODO: Add command to clear data/music directory
+
 
 # Mandatory setup function, not part of class
 def setup(bot):
