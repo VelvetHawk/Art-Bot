@@ -11,6 +11,7 @@ import youtube_dl
 import re
 import os
 import unicodedata
+import asyncio
 
 
 class Music(commands.Cog, name="Music-Rewrite"):
@@ -19,6 +20,8 @@ class Music(commands.Cog, name="Music-Rewrite"):
 		# Data
 		self.playlist = []
 		self.continue_playing = None
+		self.pause = False
+		self.skip = False
 		# Voice Channel Bot is Currently Connected to
 		self.voice_client: VoiceClient = None
 
@@ -39,25 +42,41 @@ class Music(commands.Cog, name="Music-Rewrite"):
 			return		# Empty content
 		try:
 			if self.is_link(message):  # User sent link
-				self.download_audio(message)
 				# Check if user is in a voice channel
 				if context.author.voice:
+					self.download_audio(message)
 					await self.setup_voice_connection(context.author.voice)
 					# Remove original message
 					await context.message.delete()
 					# Start audio loop
-					if self.start_audio_loop():
-						await context.send("```\nNow playing: {}\nLink: {}```".format(
-							self.playlist[0]['title'], self.playlist[0]['link'])
-						)
+					if not self.voice_client.is_playing():
+						self.start_audio()
+						await self.notify_current_song(context)
 						# Audio Loop
-						# while self.continue_playing:
-						print("Playlist:\n", self.playlist)
-					else:
+						while self.continue_playing:
+							if self.skip:
+								self.skip = False
+								self.voice_client.stop()
+								if len(self.playlist) > 0:
+									await self.notify_current_song(context)
+									self.start_audio()  # Audio skipped in skip command
+							# If current song finished, play next in playlist
+							elif not self.voice_client.is_playing() and not self.pause:
+								if self.loop:
+									await self.notify_current_song(context)
+									self.start_audio()
+								else:  # No songs left, stop loop
+									if len(self.playlist) == 0:
+										self.continue_playing = False
+									else:  # Move to next song and play
+										self.playlist.pop(0)
+										await self.notify_current_song(context)
+										self.start_audio()
+							# Sleep for 1 second to use other commands
+							await asyncio.sleep(1)
+					else:  # Show last entry added to playlist
 						await context.send("```\nAdded to playlist: {}\nLink: {}```"
-							.format(self.playlist[0]['title'], message))
-					
-					
+							.format(self.playlist[len(self.playlist)-1]['title'], message))
 				else:  # Inform user they are not in a voice channel
 					await context.send(
 						"<@{}>, you need to be in a voice a channel to play music!"
@@ -82,7 +101,18 @@ class Music(commands.Cog, name="Music-Rewrite"):
 					" shows all of the songs currently in the playlist."
 	)
 	async def queue(self, context: Context):
-		pass
+		if len(self.playlist) < 1:
+			await context.send("Playist seems to be currently empty, <@{}>"
+				.format(context.author.id))
+		else:
+			song_queue = "**Current song queue:**\n```md\n"
+			for song in range(0, len(self.playlist)):
+				song_queue += "{}. {}    [{}]\n".format(
+					song + 1, self.playlist[song]['title'], self.playlist[song]['link'])
+			song_queue += "```"
+			await context.send(song_queue)
+		# Remove original message
+		await context.message.delete()
 
 	@commands.command(
 		name="loop",
@@ -94,7 +124,15 @@ class Music(commands.Cog, name="Music-Rewrite"):
 					" If you wish to unset this, simply call the command again."
 	)
 	async def loop(self, context: Context):
-		pass
+		# Inverts the current loop status of a song
+		if self.voice_client and self.voice_client.is_playing():
+			self.playlist[0]['loop'] = not self.playlist[0]['loop']  # Invert
+			# Remove original message
+			await context.message.delete()
+			if self.playlist[0]['loop']:
+				await context.send("<@{}> has set the current song to loop!".format(context.author.id))
+			else:
+				await context.send("<@{}> has stopped the current song looping!".format(context.author.id))
 
 	@commands.command(
 		name="skip",
@@ -106,8 +144,18 @@ class Music(commands.Cog, name="Music-Rewrite"):
 		description="This command will skip the current song in the playlist, even"
 					" if the song is set to loop."
 	)
-	async def skip_song(self, context: Context, amount: int = 1):
-		pass
+	async def skip_song(self, context: Context, amount=1):
+		if self.voice_client:
+			if isinstance(amount, int):
+				if amount >= len(self.playlist)-1:
+					self.playlist = []
+				else:
+					for i in range(amount):
+						self.playlist.pop(0)
+			elif amount.lower() == "all":
+				self.playlist = []
+			# Let main play loop know
+			self.skip = True
 
 	@commands.command(
 		name="pause",
@@ -119,7 +167,9 @@ class Music(commands.Cog, name="Music-Rewrite"):
 					" use the \'resume\' command."
 	)
 	async def pause(self, context: Context):
-		pass
+		if self.voice_client and self.voice_client.is_playing():
+			self.pause = True
+			self.voice_client.pause()
 
 	@commands.command(
 		name="resume",
@@ -130,7 +180,9 @@ class Music(commands.Cog, name="Music-Rewrite"):
 		description="This command will resume the current song if paused."
 	)
 	async def resume(self, context: Context):
-		pass
+		if self.voice_client and self.voice_client.is_paused():
+			self.voice_client.resume()
+			self.pause = False
 
 	@commands.command(
 		name="stop",
@@ -142,7 +194,9 @@ class Music(commands.Cog, name="Music-Rewrite"):
 					" and empty the current playlist."
 	)
 	async def stop(self, context: Context):
-		pass
+		if self.voice_client:
+			self.continue_playing = False
+			self.voice_client.stop()
 
 	@commands.command(
 		name="leave",
@@ -155,27 +209,42 @@ class Music(commands.Cog, name="Music-Rewrite"):
 					" disconnect from the voice channel it is currently in."
 	)
 	async def leave(self, context: Context):
-		pass
+		if self.voice_client:
+			self.voice_client.stop()
+			self.continue_playing = False
+			# Leave channel
+			await self.voice_client.disconnect()
+			await asyncio.sleep(2)  # Time to free resources
+			# Delete all files in directory and clear playlist
+			self.playlist = []
+			self.voice_client = None
+			self.skip = False
+			self.delete_file("ALL")
 
-	def delete_file(self, filename: str):
-		"""
-		Delete all files with a given name
+	async def notify_current_song(self, context: Context):
+		await context.send("```\nNow playing: {}\nLink: {}```".format(
+			self.playlist[0]['title'], self.playlist[0]['link'])
+		)
+
+	@staticmethod
+	def delete_file(filename: str):
+		""" Delete all files with a given name
+
 		:param filename: Name of the file to delete
 		:return: None
 		"""
-		pass
-
-	def add_to_playlist(self, title: str, link: str):
-		"""
-
-		:param title: Name of the file
-		:param link: URL of the source
-		:return: None
-		"""
-		pass
-
-	def clear_playlist(self):
-		pass
+		if filename == "ALL":
+			for file in os.listdir("data/music/"):
+				deleted = False
+				while not deleted:
+					try:
+						os.remove(f"data/music/{file}")
+						deleted = True
+					except Exception as e:
+						print("Not removed, waiting 1 second...")
+						asyncio.sleep(1)
+		else:
+			print("File--: ", filename)
 
 	@staticmethod
 	def is_link(link: str) -> bool:
@@ -194,13 +263,11 @@ class Music(commands.Cog, name="Music-Rewrite"):
 		title = link_info['title']
 		# Find file in downloaded directory
 		source = None
-		for file in os.listdir("./data/music"):
+		for file in os.listdir("data/music/"):
 			file_title, file_ext = file.title().split(".")
 			if self.caseless_equals(title, file_title):
-				source = f"./data/music/{title}.{file_ext.lower()}"
+				source = f"data/music/{title}.{file_ext.lower()}"
 				break  # End loop
-			else:
-				print("'{}' and '{}' are not equal".format(title, file_title))
 		# Add audio source to playlist
 		self.playlist.append({
 			"title": title,
@@ -224,15 +291,12 @@ class Music(commands.Cog, name="Music-Rewrite"):
 			self.voice_client =\
 				await self.bot.get_channel(voice_state.channel.id).connect()
 
-	def start_audio_loop(self) -> bool:
-		if not self.voice_client.is_playing():
-			self.continue_playing = True
-			self.voice_client.play(discord.FFmpegPCMAudio(
-				source=self.playlist[0]['source'],
-				executable=config.FFMPEG_PATH
-			))
-			return True
-		return False
+	def start_audio(self):
+		self.continue_playing = True
+		self.voice_client.play(discord.FFmpegPCMAudio(
+			source=self.playlist[0]['source'],
+			executable=config.FFMPEG_PATH
+		))
 
 
 # Mandatory setup function, not part of class
