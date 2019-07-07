@@ -8,6 +8,8 @@ import traceback
 import requests
 import re
 
+# TODO: Update exception handling and error messages to be logged to file
+
 
 class Core(commands.Cog, name="Art Bot Core"):
 	def __init__(self, bot: commands.Bot):
