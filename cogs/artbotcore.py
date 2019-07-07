@@ -17,15 +17,11 @@ class Core(commands.Cog, name="Art Bot Core"):
 	@commands.command(name="greet")
 	async def greet(self, context: Context):
 		greetings = [
-			"fagget",
-			"faguette",
-			"asshole",
-			"feg",
 			"beloved",
 			"darling",
 			"dearest",
-			"cumlord",
-			"cumbucket"
+			"waste of time",
+			"source of annoyance"
 		]
 		# Remove original message
 		await context.message.delete()
