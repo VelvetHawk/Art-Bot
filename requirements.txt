@@ -1,8 +1,0 @@
-# Discord to run bot
-discord.py==1.1.1
-# For network requests
-requests==2.22.0
-# For downloading music
-youtube-dl==2019.5.20
-# For playing music
-PyNacl==1.3.0
