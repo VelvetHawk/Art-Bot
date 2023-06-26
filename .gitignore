@@ -8,3 +8,6 @@ venv/
 
 # Ignore PyCharm files
 .idea/
+
+# Ignore 3rd-party files
+3rd-party/
