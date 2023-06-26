@@ -161,7 +161,7 @@ class Music(commands.Cog, name="Music"):
 			traceback.print_exc()
 			print("\t############ END Exception ##############")
 
-	# TODO: Fix extensions for videos
+	# FIXME: Fix extensions for videos
 	"""
 	Sometimes, videos can have a webm extenion, so playing them may not work.
 	Fix the file deletion to also consider the extension where it's not ONLY mp4, but also webm 
